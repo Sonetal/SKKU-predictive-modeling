@@ -1,1 +1,1 @@
-# SKKU-predictive-modeling
+# SKKU-predictive-model
