@@ -1,0 +1,97 @@
+---
+title: "과제 1.R"
+author: "Won Pyo Choi"
+date: '2020 4 3 '
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+####빈도자료 이용한 선형모형 복습  
+
+먼저 주어진 데이터 중에 5가지 변수를 추출한 AutoClaim_Freq를 만들어 보았습니다.  
+CLM_FREQ5=5년동안 발생한 사고 건수  
+AREA=사고 발생한 지역
+CAR_TYPE=사고 발생한 자동차 타입  
+GENDER=사고 발생자 성별  
+AGE=사고 발생자 연령 
+```{r start, include=FALSE }
+AutoClaim <- read.csv("AutoClaim.csv")
+head(AutoClaim)
+AutoClaim_Freq <- subset(AutoClaim, select=c("CLM_FREQ5","AREA","CAR_TYPE" , "GENDER" ,"AGE"))
+summary(AutoClaim_Freq)
+```
+다음 CLM_FREQ5를 반응변수로 두고, 나머지 4가지를 예측변수로 둔 뒤에 선형모형을 만들어 보았습니다.  
+R squared가 7%로 나왔습니다.
+```{r 1}
+modf <- lm(CLM_FREQ5 ~  +AREA +AGE + GENDER + CAR_TYPE ,data= AutoClaim_Freq)
+summary(modf)
+```
+
+####빈도 데이터를 사고유무 데이터로 변형  
+
+사고빈도가 1보다 작다면(0이라면) 0값, 1이상이라면 1값을 갖는 CLM_OCCURANCE를 만들어보았습니다.
+```{r 2}
+AutoClaim_Freq$CLM_OCCURANCE <- ifelse(AutoClaim_Freq$CLM_FREQ5 <1, 0, 1)
+AutoClaim_Occur <- subset(AutoClaim_Freq, select=c("CLM_OCCURANCE","AREA","CAR_TYPE" , "GENDER" ,"AGE"))
+```
+####사고 유무 LM  
+
+사고 유무를 나타내는 CLM_OCCURANCE를 반응변수로 두고, 나머지 4가지를 예측변수로 둔 뒤에 선형모형을 만들어 보았습니다.  
+Estimate에 회귀계수들이 표현되었고, R-squared는 9%가 나왔습니다.
+```{r LM}
+mod_occur <- lm(CLM_OCCURANCE ~ AREA + CAR_TYPE + GENDER +AGE ,data= AutoClaim_Occur)
+summary(mod_occur)
+```
+####사고 유무 GLM  
+
+사고 유무를 나타내는 CLM_OCCURANCE를 반응변수로 두고, 나머지 4가지를 예측변수로 둔 뒤에 일반화선형모형을 만들어 보았습니다.  
+family= binomial, link=logit으로 설정  
+AIC(아카이케 정보기준)=12718이 나왔습니다.
+```{r GLM}
+modG_occur <- glm(CLM_OCCURANCE ~ AREA + CAR_TYPE + GENDER +AGE , family= binomial(link="logit") ,data= AutoClaim_Occur)
+summary(modG_occur)
+```
+####LM VS GLM SSE 비교  
+
+LM의 SSE=2224.667, GLM의 SSE=2223.27로 GLM의 값이 조금 더 작게 나왔습니다. 
+```{r SSE}
+prediction.mod_occur <- predict(mod_occur)
+prediction.modG_occur <- predict(modG_occur, type="response")  
+
+sse2 <- sum((AutoClaim_Occur$CLM_OCCURANCE-prediction.mod_occur)^2)
+sse3 <- sum((AutoClaim_Occur$CLM_OCCURANCE-prediction.modG_occur)^2)  
+
+sse2
+sse3
+
+```
+
+####데이터의 시각화 
+
+1.나이에 따른 사고 발생 여부(누적)
+```{r Visualization}
+     
+library(plyr)
+
+library('ggplot2')
+
+ggplot(data=AutoClaim_Occur, mapping=aes(x= AGE, y=CLM_OCCURANCE, fill=GENDER))+
+               geom_bar(stat = "identity", width = 0.5)
+```
+   
+2. 나이에 따른 사고 발생 여부(비율)
+```{r Visualization 2}
+percent_occur<-ddply(AutoClaim_Occur, "AGE",transform, percent_CLM_OCCURANCE = CLM_OCCURANCE/sum(CLM_OCCURANCE)*100)               
+ggplot(data=percent_occur,mapping=aes(x= AGE, y= percent_CLM_OCCURANCE, fill=GENDER))+
+        geom_bar(stat = "identity", width = 0.5)+
+        scale_x_continuous(breaks = seq(0,85,5))
+```
+
+
+3.자동차 타입에 따른 사고 발생 여부(누적)
+```{r Visualization 3}
+ggplot(data=AutoClaim_Occur, mapping=aes(x= CAR_TYPE, y=CLM_OCCURANCE, fill=GENDER))+
+        geom_bar(stat = "identity", width = 0.5)
+```
+
