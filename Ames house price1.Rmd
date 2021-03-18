@@ -1,0 +1,100 @@
+---
+title: "Ames house price"
+author: "Choi won pyo"
+date: '2021 3 18 '
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+library(tidyverse)
+library(readr)
+library(ggplot2)
+```
+
+
+```{r}
+train <- read_csv("/cloud/project/train.csv")
+test <- read_csv("/cloud/project/test.csv")
+```
+
+#geom_point를 통해 관계 표현
+```{r}
+ggplot(train, aes(x=OverallQual, y=SalePrice)) +
+  geom_point()
+```
+
+
+#geom_boxplot을 통해 관계 표현
+```{r}
+ggplot(train, aes(x =Neighborhood, y = SalePrice)) +
+  geom_boxplot()
+```
+
+
+
+#각 지역에 따른 평균 가격 정리
+```{r}
+Select <-train %>% group_by(Neighborhood) %>% 
+  summarize(SalePrice_mean = mean(SalePrice)) %>% arrange(desc(SalePrice_mean))
+```
+
+#AIC기준으로 변수선택
+```{r}
+install.packages("MASS")
+library(MASS)
+```
+
+#상수항만 포함하는 모델
+```{r}
+model.null <- lm(SalePrice ~ 1, train)
+summary(model.null)
+```
+
+#전체 변수를 포함하는 모델(하지만 오류가 발생하는 변수가 많아 43개의 변수 선택)
+```{r}
+model.full <- lm(SalePrice ~ Neighborhood + Condition1 + Condition2 + BldgType +
+                   HouseStyle + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofStyle +
+                    RoofMatl + Exterior1st + Exterior2nd + MasVnrType + MasVnrArea + ExterQual +
+                   ExterCond + Foundation + BsmtQual + BsmtCond + BsmtExposure + BsmtFinType1 +
+                   BsmtFinSF1 + BsmtFinType2 + BsmtFinSF2 + BsmtUnfSF + TotalBsmtSF + Heating + HeatingQC +
+                 BsmtFullBath + BsmtHalfBath + FullBath + HalfBath + BedroomAbvGr +
+                   KitchenAbvGr + KitchenQual+ GarageType + GarageYrBlt + GarageFinish +
+                  GarageCars + GarageArea + GarageQual + GarageCond , train)
+
+summary(model.full)
+```
+
+
+# AIC기준으로 전진법 적용. 상수항만 포함하는 NULL변수에서 AIC를 가장 크게 감소시키는 변수를 하나씩 추가하여 설명력이 높은 모델을 찾고자 함
+```{r}
+model.forward <- stepAIC(model.null, direction = "forward",
+                         scope = list(upper = model.full,
+                                      lower = model.null))
+```
+
+#AIC 감소를 기준으로 상위 8개 변수를 도출함.(9번째 데이터 분석부터 오류가 발생하여 중단)  R-squared값이 약 83%
+```{r}
+model.forward1 <- lm(SalePrice ~ OverallQual + Neighborhood + TotalBsmtSF + HouseStyle + 
+                        RoofMatl + KitchenQual + BldgType + BsmtFinSF1 , train) 
+
+summary(model.forward1)
+```
+
+#train 셋에서 만든 선형회귀식 model.forward1를 새로운 데이터 test셋에 적용하고자 predict함수 사용, ans1에 saleprice 예상값 도출.
+```{r}
+ans1 <-predict(model.forward1, newdata = test)
+ans1
+```
+
+
+
+
+
+
+
+
+
+
+
